@@ -19,12 +19,35 @@ cp -f "$ROOT_DIR/build/config" "$WORK_DIR/config"
 rsync -a "$ROOT_DIR/build/stage-telekomlab/" "$WORK_DIR/stage-telekomlab/"
 
 ###############################################################################
-# PATCHES: i386 entfernen + QEMU im Container installieren
-# 1) Erzwinge amd64-Basis: i386/debian:trixie -> debian:trixie
-sed -i 's|i386/debian:trixie|debian:trixie|g; s|BASE_IMAGE=i386/debian:trixie|BASE_IMAGE=debian:trixie|g' "$WORK_DIR/build-docker.sh" || true
+# PATCHES (wirken auf das frisch geklonte pi-gen):
+# 1) i386-Basis raus -> amd64
+sed -i 's|i386/debian:trixie|debian:trixie|g; s|BASE_IMAGE=i386/debian:trixie|BASE_IMAGE=debian:trixie|g' \
+  "$WORK_DIR/build-docker.sh" || true
 
-# 2) QEMU im Container bereitstellen: RUN-Zeile unmittelbar nach FROM einfügen
-sed -i '/^FROM /a RUN apt-get -y update \&\& apt-get -y install --no-install-recommends qemu-user-static binfmt-support \&\& rm -rf /var/lib/apt/lists/*' "$WORK_DIR/Dockerfile" || true
+# 2) QEMU IM CONTAINER sicher installieren: RUN direkt nach FROM einfügen (falls noch nicht vorhanden)
+if ! grep -q 'qemu-user-static' "$WORK_DIR/Dockerfile"; then
+  awk '
+    BEGIN{added=0}
+    /^FROM[[:space:]]/ && added==0 {
+      print $0
+      print "RUN apt-get -y update && \\"
+      print "    apt-get -y install --no-install-recommends qemu-user-static binfmt-support && \\"
+      print "    rm -rf /var/lib/apt/lists/*"
+      added=1
+      next
+    }
+    {print $0}
+  ' "$WORK_DIR/Dockerfile" > "$WORK_DIR/Dockerfile.new" && mv "$WORK_DIR/Dockerfile.new" "$WORK_DIR/Dockerfile"
+fi
+
+# 3) HOST-Check sicher deaktivieren: binfmt_misc_required=0 und SKIP_BINFMT=1
+#    (build-docker.sh prüft sonst qemu-arm auf dem HOST und bricht ab)
+if ! grep -q 'binfmt_misc_required=0' "$WORK_DIR/build-docker.sh"; then
+  # ganz oben nach Shebang eine Default-Zeile einziehen
+  sed -i '1a : "${binfmt_misc_required:=0}"' "$WORK_DIR/build-docker.sh" || true
+fi
+export binfmt_misc_required=0
+export SKIP_BINFMT=1
 ###############################################################################
 
 # Build-Parameter
