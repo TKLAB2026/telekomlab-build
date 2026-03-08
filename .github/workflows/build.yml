@@ -18,14 +18,17 @@ jobs:
             qemu-user-static binfmt-support rsync dosfstools xz-utils zip unzip \
             coreutils quilt parted debootstrap zerofree pxz file curl git bc bison flex
 
-      - name: Enable QEMU support
+      - name: Ensure Docker is available
         run: |
-          docker run --privileged --rm tonistiigi/binfmt --install all
-
-      - name: Install Docker
-        run: |
-          curl -fsSL https://get.docker.com | sh
+          sudo apt-get update
+          sudo apt-get install -y docker.io
           sudo systemctl start docker
+          docker --version
+
+      - name: Enable QEMU for ARM
+        run: |
+          sudo apt-get install -y qemu-user-static binfmt-support
+          docker run --privileged --rm tonistiigi/binfmt --install all
 
       - name: Make scripts executable
         run: |
