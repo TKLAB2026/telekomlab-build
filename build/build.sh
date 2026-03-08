@@ -18,6 +18,15 @@ fi
 cp -f "$ROOT_DIR/build/config" "$WORK_DIR/config"
 rsync -a "$ROOT_DIR/build/stage-telekomlab/" "$WORK_DIR/stage-telekomlab/"
 
+###############################################################################
+# PATCHES: i386 entfernen + QEMU im Container installieren
+# 1) Erzwinge amd64-Basis: i386/debian:trixie -> debian:trixie
+sed -i 's|i386/debian:trixie|debian:trixie|g; s|BASE_IMAGE=i386/debian:trixie|BASE_IMAGE=debian:trixie|g' "$WORK_DIR/build-docker.sh" || true
+
+# 2) QEMU im Container bereitstellen: RUN-Zeile unmittelbar nach FROM einfügen
+sed -i '/^FROM /a RUN apt-get -y update \&\& apt-get -y install --no-install-recommends qemu-user-static binfmt-support \&\& rm -rf /var/lib/apt/lists/*' "$WORK_DIR/Dockerfile" || true
+###############################################################################
+
 # Build-Parameter
 export CONTINUE=1
 export DEPLOY_ZIP=1
