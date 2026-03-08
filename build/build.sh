@@ -19,12 +19,14 @@ cp -f "$ROOT_DIR/build/config" "$WORK_DIR/config"
 rsync -a "$ROOT_DIR/build/stage-telekomlab/" "$WORK_DIR/stage-telekomlab/"
 
 ###############################################################################
-# PATCHES (wirken auf das frisch geklonte pi-gen):
+# PATCHES (wirken auf die frisch geklonte pi-gen-Kopie):
+
 # 1) i386-Basis raus -> amd64
 sed -i 's|i386/debian:trixie|debian:trixie|g; s|BASE_IMAGE=i386/debian:trixie|BASE_IMAGE=debian:trixie|g' \
   "$WORK_DIR/build-docker.sh" || true
 
-# 2) QEMU IM CONTAINER sicher installieren: RUN direkt nach FROM einfügen (falls noch nicht vorhanden)
+# 2) QEMU IM CONTAINER sicher installieren:
+#    Einen RUN-Block direkt nach FROM einfügen (idempotent)
 if ! grep -q 'qemu-user-static' "$WORK_DIR/Dockerfile"; then
   awk '
     BEGIN{added=0}
@@ -40,10 +42,8 @@ if ! grep -q 'qemu-user-static' "$WORK_DIR/Dockerfile"; then
   ' "$WORK_DIR/Dockerfile" > "$WORK_DIR/Dockerfile.new" && mv "$WORK_DIR/Dockerfile.new" "$WORK_DIR/Dockerfile"
 fi
 
-# 3) HOST-Check sicher deaktivieren: binfmt_misc_required=0 und SKIP_BINFMT=1
-#    (build-docker.sh prüft sonst qemu-arm auf dem HOST und bricht ab)
-if ! grep -q 'binfmt_misc_required=0' "$WORK_DIR/build-docker.sh"; then
-  # ganz oben nach Shebang eine Default-Zeile einziehen
+# 3) HOST-Check abschalten (sonst verlangt das Skript qemu-arm auf dem Runner)
+if ! grep -q 'binfmt_misc_required' "$WORK_DIR/build-docker.sh"; then
   sed -i '1a : "${binfmt_misc_required:=0}"' "$WORK_DIR/build-docker.sh" || true
 fi
 export binfmt_misc_required=0
