@@ -1,0 +1,6 @@
+Telekom Mini LAB (Pi 3B, 32-bit)
+- 20 Nebenstellen: 1001..1020
+- Rufgruppe: 2000 (ring-all)
+- Asterisk-Konsole: sudo asterisk -rvvv
+- Konfig: /etc/asterisk/{pjsip.conf,extensions.conf}
+- Doku: /home/pi/telekomlab/docs/

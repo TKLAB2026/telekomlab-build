@@ -1,0 +1,12 @@
+# pi-gen Konfiguration für TelekomLAB
+IMG_NAME=telekomlab
+RELEASE=bookworm
+ENABLE_SSH=1
+TARGET_HOSTNAME=telekomlab
+FIRST_USER_NAME=pi
+FIRST_USER_PASS=telekomlab
+LOCALE_DEFAULT=de_AT.UTF-8
+KEYBOARD_KEYMAP=de
+KEYBOARD_LAYOUT=de
+TIMEZONE=Europe/Vienna
+WPA_COUNTRY=AT
