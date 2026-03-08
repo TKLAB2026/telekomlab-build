@@ -11,34 +11,35 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      # Nur anzeigen, ob Docker auf dem Runner verfügbar ist
       - name: Show runner & docker
         run: |
           uname -a
-          docker --version
-          docker info -f '{{.ServerVersion}}'
+          docker --version || true
+          docker info -f '{{.ServerVersion}}' || true
+          pwd; ls -la
+          ls -la build || true
 
-      # QEMU für ARM aktivieren (offizielles Action-Plugin, kein systemctl)
       - name: Enable QEMU (arm & arm64)
         uses: docker/setup-qemu-action@v3
         with:
           platforms: arm,arm64
 
-      # Skripte ausführbar machen (falls Upload CRLF hatte)
-      - name: Make scripts executable
+      - name: Normalize line endings (dos2unix)
         run: |
-          find . -name "*.sh" -exec chmod +x {} \;
+          sudo apt-get update
+          sudo apt-get install -y dos2unix
+          find . -type f -name "*.sh" -print0 | xargs -0 dos2unix || true
+          find . -type f -name "*.sh" -print0 | xargs -0 chmod +x || true
 
-      # Deinen Build starten (Docker ist auf GitHub bereits vorinstalliert)
       - name: Run TELEKOMLAB build
         env:
           DOCKER_DEFAULT_PLATFORM: linux/amd64
-          SKIP_BINFMT: "1"     # Host-Check überspringen; QEMU ist per Action aktiv
+          SKIP_BINFMT: "1"
         run: |
+          set -x
           cd build
           ./build.sh
 
-      # Ergebnis(e) hochladen
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -46,4 +47,3 @@ jobs:
           path: |
             pi-gen/deploy/**
             output/**
-          if-no-files-found: warn
