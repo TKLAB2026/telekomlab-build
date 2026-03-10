@@ -1,6 +1,8 @@
 # pi-gen Konfiguration für TelekomLAB
 IMG_NAME=telekomlab
 RELEASE=bookworm
+APT_MIRROR=http://raspbian.raspberrypi.org/raspbian
+SECURITY_MIRROR=http://archive.raspberrypi.org/debian
 APT_MIRROR=https://deb.debian.org/debian
 SECURITY_MIRROR=https://security.debian.org/debian-security
 ENABLE_SSH=1
