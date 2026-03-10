@@ -15,19 +15,27 @@ if [ ! -d "$WORK_DIR" ]; then
 fi
 
 ###############################################################################
-# FIX: Raspberry-Pi Archiv-Key aktualisieren (gegen "Invalid Release signature")
+# FIX: Kombinierter Archiv-Keyring für Stage0 (behebt "unknown key .../Invalid Release signature")
 
 sudo apt-get update -y
-sudo apt-get install -y gnupg curl
+sudo apt-get install -y gnupg ca-certificates curl
 
-# aktuellen offiziellen Archiv-Key direkt in Stage0 einfügen
-# Debian Bookworm: richtigen Debian-Archiv-Key einfügen (fix für unknown key 9165938D90FDDD2E)
-curl -fsSL https://ftp-master.debian.org/keys/archive-key-12.asc \
-  | gpg --dearmor > "$WORK_DIR/stage0/files/debian-archive-keyring.gpg"
+TMPKEY="$WORK_DIR/stage0/files/pi-keys.asc"
 
-# pi-gen erwartet einen Key mit dem Namen raspberrypi.gpg, daher auf diesen Namen kopieren
-cp "$WORK_DIR/stage0/files/debian-archive-keyring.gpg" "$WORK_DIR/stage0/files/raspberrypi.gpg"
+# 1) Raspbian (raspbian.raspberrypi.org) – offizieller Public Key (Fingerprint endet u.a. auf 90FDDD2E)
+curl -fsSL https://archive.raspbian.org/raspbian.public.key >> "$TMPKEY"
+
+# 2) Raspberry Pi Archive (archive.raspberrypi.org) – offizieller Archiv-Key
+curl -fsSL http://archive.raspberrypi.org/debian/raspberrypi.gpg.key >> "$TMPKEY"
+
+# 3) Debian 12 (Bookworm) – offizieller Debian-Archiv-Key
+curl -fsSL https://ftp-master.debian.org/keys/archive-key-12.asc >> "$TMPKEY"
+
+# In einen gemeinsamen GPG-Keyring umwandeln, den debootstrap versteht:
+gpg --dearmor < "$TMPKEY" > "$WORK_DIR/stage0/files/raspberrypi.gpg"
+rm -f "$TMPKEY"
 ###############################################################################
+
 
 # Konfiguration + Custom Stage übernehmen
 cp -f "$ROOT_DIR/build/config" "$WORK_DIR/config"
