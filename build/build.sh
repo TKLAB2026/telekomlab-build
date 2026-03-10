@@ -21,12 +21,13 @@ rsync -a "$ROOT_DIR/build/stage-telekomlab/" "$WORK_DIR/stage-telekomlab/"
 ###############################################################################
 # PATCHES (wirken auf die frisch geklonte pi-gen-Kopie):
 
-# 1) i386-Basis raus -> amd64
-sed -i 's|i386/debian:trixie|debian:trixie|g; s|BASE_IMAGE=i386/debian:trixie|BASE_IMAGE=debian:trixie|g' \
+# 1) i386-Basis sicher raus -> amd64 (trifft jede Schreibweise)
+sed -i -E \
+  's|i386/debian:[A-Za-z0-9._-]+|debian:trixie|g; s|BASE_IMAGE=i386/debian:[A-Za-z0-9._-]+|BASE_IMAGE=debian:trixie|g' \
   "$WORK_DIR/build-docker.sh" || true
 
 # 2) QEMU IM CONTAINER sicher installieren:
-#    Einen RUN-Block direkt nach FROM einfügen (idempotent)
+#    Einen RUN-Block direkt nach FROM einfügen (nur wenn noch nicht vorhanden)
 if ! grep -q 'qemu-user-static' "$WORK_DIR/Dockerfile"; then
   awk '
     BEGIN{added=0}
@@ -42,10 +43,13 @@ if ! grep -q 'qemu-user-static' "$WORK_DIR/Dockerfile"; then
   ' "$WORK_DIR/Dockerfile" > "$WORK_DIR/Dockerfile.new" && mv "$WORK_DIR/Dockerfile.new" "$WORK_DIR/Dockerfile"
 fi
 
-# 3) HOST-Check abschalten (sonst verlangt das Skript qemu-arm auf dem Runner)
-if ! grep -q 'binfmt_misc_required' "$WORK_DIR/build-docker.sh"; then
-  sed -i '1a : "${binfmt_misc_required:=0}"' "$WORK_DIR/build-docker.sh" || true
-fi
+# 3) HOST-Check deaktivieren (sonst verlangt das Skript qemu-arm auf dem Runner)
+#    a) Falls irgendwo hart auf 1 gesetzt wurde -> auf 0 drehen
+sed -i -E 's/binfmt_misc_required=1/binfmt_misc_required=0/g' "$WORK_DIR/build-docker.sh" || true
+#    b) Die gesamte IF-Bedingung neutralisieren (Block wird komplett übersprungen)
+sed -i -E 's/if\s+\[\[\s*"?\$\{?binfmt_misc_required\}?"?\s*==\s*"1"\s*\]\];\s*then/if false; then/g' "$WORK_DIR/build-docker.sh" || true
+#    c) Zusätzlich Default auf 0 setzen und Umgebungsvariablen exportieren
+sed -i '1a : "${binfmt_misc_required:=0}"' "$WORK_DIR/build-docker.sh" || true
 export binfmt_misc_required=0
 export SKIP_BINFMT=1
 ###############################################################################
@@ -71,3 +75,4 @@ fi
 
 echo
 echo "Build abgeschlossen. Dateien liegen in: $OUTPUT_DIR"
+``
