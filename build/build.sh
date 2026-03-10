@@ -11,7 +11,7 @@ mkdir -p "$OUTPUT_DIR"
 # pi-gen bei Bedarf klonen
 if [ ! -d "$WORK_DIR" ]; then
   echo "Cloning pi-gen..."
-  git clone https://github.com/RPi-Distro/pi-gen.git "$WORK_DIR"
+git clone --branch bookworm https://github.com/RPi-Distro/pi-gen.git "$WORK_DIR"
 fi
 
 # Konfiguration + Custom Stage übernehmen
