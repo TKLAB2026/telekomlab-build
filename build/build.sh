@@ -14,28 +14,36 @@ if [ ! -d "$WORK_DIR" ]; then
   git clone --branch bookworm https://github.com/RPi-Distro/pi-gen.git "$WORK_DIR"
 fi
 
+###############################################################################
+# FIX: Raspberry-Pi Archiv-Key aktualisieren (gegen "Invalid Release signature")
+
+sudo apt-get update -y
+sudo apt-get install -y gnupg curl
+
+# aktuellen offiziellen Archiv-Key direkt in Stage0 einfügen
+curl -fsSL http://archive.raspberrypi.org/debian/raspberrypi.gpg.key \
+  | gpg --dearmor > "$WORK_DIR/stage0/files/raspberrypi.gpg"
+###############################################################################
+
 # Konfiguration + Custom Stage übernehmen
 cp -f "$ROOT_DIR/build/config" "$WORK_DIR/config"
 rsync -a "$ROOT_DIR/build/stage-telekomlab/" "$WORK_DIR/stage-telekomlab/"
 
 ###############################################################################
-# PATCHES (wirken auf die frisch geklonte pi-gen-Kopie):
+# Zusätzliche Patches (harmlos, aber wichtig)
 
-# 1) i386-Basis sicher raus -> amd64 (trifft jede Schreibweise)
+# 1) i386 raus
 sed -i -E \
-  's|i386/debian:[A-Za-z0-9._-]+|debian:trixie|g; s|BASE_IMAGE=i386/debian:[A-Za-z0-9._-]+|BASE_IMAGE=debian:trixie|g' \
+  's|i386/debian:[A-Za-z0-9._-]+|debian:bookworm|g; s|BASE_IMAGE=i386/debian:[A-Za-z0-9._-]+|BASE_IMAGE=debian:bookworm|g' \
   "$WORK_DIR/build-docker.sh" || true
 
-# 2) QEMU IM CONTAINER sicher installieren:
-#    Einen RUN-Block direkt nach FROM einfügen (nur wenn noch nicht vorhanden)
+# 2) QEMU im Container installieren
 if ! grep -q 'qemu-user-static' "$WORK_DIR/Dockerfile"; then
   awk '
     BEGIN{added=0}
     /^FROM[[:space:]]/ && added==0 {
       print $0
-      print "RUN apt-get -y update && \\"
-      print "    apt-get -y install --no-install-recommends qemu-user-static binfmt-support && \\"
-      print "    rm -rf /var/lib/apt/lists/*"
+      print "RUN apt-get update -y && apt-get install -y --no-install-recommends qemu-user-static binfmt-support && rm -rf /var/lib/apt/lists/*"
       added=1
       next
     }
@@ -43,13 +51,9 @@ if ! grep -q 'qemu-user-static' "$WORK_DIR/Dockerfile"; then
   ' "$WORK_DIR/Dockerfile" > "$WORK_DIR/Dockerfile.new" && mv "$WORK_DIR/Dockerfile.new" "$WORK_DIR/Dockerfile"
 fi
 
-# 3) HOST-Check deaktivieren (sonst verlangt das Skript qemu-arm auf dem Runner)
-#    a) Falls irgendwo hart auf 1 gesetzt wurde -> auf 0 drehen
+# 3) HOST-Check deaktivieren (wichtiger Fix)
 sed -i -E 's/binfmt_misc_required=1/binfmt_misc_required=0/g' "$WORK_DIR/build-docker.sh" || true
-#    b) Die gesamte IF-Bedingung neutralisieren (Block wird komplett übersprungen)
-sed -i -E 's/if\s+\[\[\s*"?\$\{?binfmt_misc_required\}?"?\s*==\s*"1"\s*\]\];\s*then/if false; then/g' "$WORK_DIR/build-docker.sh" || true
-#    c) Zusätzlich Default auf 0 setzen und Umgebungsvariablen exportieren
-sed -i '1a : "${binfmt_misc_required:=0}"' "$WORK_DIR/build-docker.sh" || true
+sed -i -E 's/\[\[\s*"\$\{?binfmt_misc_required\}?"\s*==\s*"1"\s*\]\]/false/g' "$WORK_DIR/build-docker.sh" || true
 export binfmt_misc_required=0
 export SKIP_BINFMT=1
 ###############################################################################
@@ -75,4 +79,3 @@ fi
 
 echo
 echo "Build abgeschlossen. Dateien liegen in: $OUTPUT_DIR"
-``
