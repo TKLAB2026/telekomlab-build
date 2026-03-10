@@ -21,8 +21,12 @@ sudo apt-get update -y
 sudo apt-get install -y gnupg curl
 
 # aktuellen offiziellen Archiv-Key direkt in Stage0 einfügen
-curl -fsSL http://archive.raspberrypi.org/debian/raspberrypi.gpg.key \
-  | gpg --dearmor > "$WORK_DIR/stage0/files/raspberrypi.gpg"
+# Debian Bookworm: richtigen Debian-Archiv-Key einfügen (fix für unknown key 9165938D90FDDD2E)
+curl -fsSL https://ftp-master.debian.org/keys/archive-key-12.asc \
+  | gpg --dearmor > "$WORK_DIR/stage0/files/debian-archive-keyring.gpg"
+
+# pi-gen erwartet einen Key mit dem Namen raspberrypi.gpg, daher auf diesen Namen kopieren
+cp "$WORK_DIR/stage0/files/debian-archive-keyring.gpg" "$WORK_DIR/stage0/files/raspberrypi.gpg"
 ###############################################################################
 
 # Konfiguration + Custom Stage übernehmen
